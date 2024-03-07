@@ -12,3 +12,4 @@ readingTime = false
 hideComments = false
 color = "" #color from the theme settings
 +++
+# Hello page
