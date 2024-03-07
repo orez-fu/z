@@ -1,12 +1,3 @@
-[submodule "themes/terminal"]
-	path = themes/terminal
-	url = https://github.com/panr/hugo-theme-terminal.git
 [submodule "themes/hugoplate"]
 	path = themes/hugoplate
 	url = https://github.com/zeon-studio/hugoplate.git
-[submodule "themes/plate"]
-	path = themes/plate
-	url = https://github.com/zeon-studio/hugoplate.git
-[submodule "themes/ananke"]
-	path = themes/ananke
-	url = https://github.com/theNewDynamic/gohugo-theme-ananke.git
