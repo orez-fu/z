@@ -2,7 +2,7 @@
 title: "Hey, I'm Orez Fu!"
 meta_title: "About"
 description: "this is meta description"
-image: "/images/prime_avatar.png"
+image: "/images/prime_avatar.jpg"
 draft: false
 ---
 
