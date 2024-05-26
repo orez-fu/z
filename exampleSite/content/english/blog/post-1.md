@@ -29,8 +29,7 @@ Giải pháp này được đề xuất trong bài viết sử dụng một số
 - [AWS CloudFormation](https://aws.amazon.com/cloudformation/): AWS CloudFormation cho phép bạn mô hình hóa, cung cấp và quản lý AWS cũng như tài nguyên của bên thứ 3 bằng cách xử lý cơ sở hạ tầng dưới dạng mã. Bạn sẽ sử dụng dịch vụ này để triển khai các tài nguyên cơ bản được yêu cầu trong phần chuẩn bị.
 - [Amazon Elastic Container Registry (ECR)](https://aws.amazon.com/ecr/): Dịch vụ Container Registry trên AWS, tương tự như Docker Hub, tạo điều kiện thuận tiện cho nhà phát triển để lưu trữ, quản lý, và triển khai Docker container images.
 
-  *Ảnh 1: Kiến trúc workflow thể hiện mã nguồn và các giai đoạn xây dựng, kiểm thử, phê duyệt, triển khai*
-[!architecture](https://d2908q01vomqb2.cloudfront.net/7719a1c782a1ba91c031a682a0a2f8658209adbf/2024/04/29/gha-arch.png)
+{{< image src="https://d2908q01vomqb2.cloudfront.net/7719a1c782a1ba91c031a682a0a2f8658209adbf/2024/04/29/gha-arch.png" caption="Ảnh 1: Kiến trúc workflow thể hiện mã nguồn và các giai đoạn xây dựng, kiểm thử, phê duyệt, triển khai" alt="alter-text" height="" width="" position="center" command="fill" option="q100" class="img-fluid" title="image title"  webp="false" >}}
 
 Hành trình của mã nguồn bắt đầu từ môi trường phát triển - của nhà phát triển - đi đến ứng dụng - hướng tới người dùng - là một quá trình chuyển tiếp liên tục trên các dịch vụ AWS khác nhau với các hoạt động chính gồm xây dựng và triển khai được thực hiện thông qua GitHub Actions:
 
