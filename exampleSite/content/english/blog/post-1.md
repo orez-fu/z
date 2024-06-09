@@ -100,7 +100,160 @@ aws cloudformation describe-stacks --stack-name github-actions-demo-base \
 
 ### Clone mã nguồn từ CodeCommit Repository
 
+Tiếp theo, bạn sẽ tạo một ứng dụng python flask đơn giản. Đóng gói `helm chart` cũng sẽ là yêu cầu bắt buộc để triển khai ứng dụng và mã nguồn của helm chart cũng được lưu trữ trên kho mã nguồn ở AWS CodeCommit. Bắt đầu clone Code Commit repository bằng các lệnh sau:
+
+1. Cấu hình git client để có thể sử dụng trình trợ giúp thông tin xác thực AWS CLI CodeCommit (credential helper).  
+  - Với máy tính chạy hệ điều hành dựa trên UNIX (Linux, MacOS) làm theo hướng dẫn [này](https://docs.aws.amazon.com/codecommit/latest/userguide/setting-up-https-unixes.html)
+  - Với máy tính chạy hệ điều hành Windows sử dụng hướng dẫn [này](https://docs.aws.amazon.com/codecommit/latest/userguide/setting-up-https-windows.html)
+
+2. Lấy thông tin URL để clone bằng câu lệnh sau:
+
+  ```bash
+  export CODECOMMIT_CLONE_URL=$(aws cloudformation describe-stacks \
+  --stack-name github-actions-demo-base \
+  --query "Stacks[0].Outputs[?OutputKey=='CodeCommitCloneUrl'].OutputValue" \
+  --region $AWS_REGION \
+  --output text)
+  ``` 
+
+3. Clone và truy cập repository
+  ```bash
+  git clone $CODECOMMIT_CLONE_URL github-actions-demo && cd github-actions-demo
+  ```
+
 ### Phát triển ứng dụng
+
+Tại bước này, bạn sẽ viết mã ứng dụng và mã triển khai, nói cách khác, bạn có thể bắt đầu xây dựng ứng dụng và các manifest cần thiết sử dụng cho triển khai.
+
+1. Tạo tệp tin `app.py`, ứng dụng "hello world" đơn giản bằng câu lệnh sau:
+
+  ```bash
+  cat << EOF >app.py
+  from flask import Flask
+  app = Flask(__name__)
+
+  @app.route('/')
+  def demoapp():
+    return 'Hello from EKS! This application is built using Github Actions on AWS CodeBuild'
+
+  if __name__ == '__main__':
+    app.run(port=8080,host='0.0.0.0')
+  EOF
+  ```
+
+2. Tạo Dockerfile trong cùng thư mục với tệp tin `app.py` bằng lệnh sau:
+
+  ```bash
+  cat << EOF > Dockerfile
+  FROM public.ecr.aws/docker/library/python:alpine3.18 
+  WORKDIR /app 
+  RUN pip install Flask 
+  RUN apk update && apk upgrade --no-cache 
+  COPY app.py . 
+  CMD [ "python3", "app.py" ]
+  EOF
+  ```
+
+3. Sinh mã nguồn helm chart bằng lệnh sau:
+
+  ```bash
+  helm create demo-app 
+  rm -rf demo-app/templates/* 
+  ```
+
+4. Tạo các tệp tin manifest cần thiết cho việc triển khai:
+  - `deployment.yaml` - bao gồm khuôn mẫu để triển khai ứng dụng. Nó bao gồm trạng thái mong muốn khi triển khai và pod template (có các đặc tả về container image sử dụng, port của ứng dụng, ...)
+
+    ```bash
+    cat <<EOF > demo-app/templates/deployment.yaml
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      namespace: {{ default "default" .Values.namespace }}
+      name: {{ .Release.Name }}-deployment
+    spec:
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: {{ .Release.Name }}
+      replicas: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: {{ .Release.Name }}
+        spec:
+          containers:
+          - image: {{ .Values.image.repository }}:{{ default "latest" .Values.image.tag }}
+            imagePullPolicy: {{ .Values.image.pullPolicy}}
+            name: demoapp
+            ports:
+            - containerPort: 8080
+    EOF
+    ```
+
+  - `service.yaml` - Mô tả đối tượng service trong Kubernetes và chỉ ra cách để truy cập vào danh sách các pod chạy ứng dụng. Service hoạt động như một bộ cân bằng tải (load balancer) để điều hướng các yêu cầu từ phía bên ngoài tới pod trong Kubernetes. Có nhiều loại service theo các tình huống khác nhau: ClusterIP, NodePort, hoặc LoadBalancer.
+    
+    ```bash
+    cat <<EOF > demo-app/templates/service.yaml
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      namespace: {{ default "default" .Values.namespace }}
+      name: {{ .Release.Name }}-service
+    spec:
+      ports:
+        - port: {{ .Values.service.port }}
+          targetPort: 8080
+          protocol: TCP
+      type: {{ .Values.service.type }}
+      selector:
+        app.kubernetes.io/name: {{ .Release.Name }}
+    EOF
+    ```
+
+  - `ingress.yaml` - Định nghĩa ingress rules cho phép truy cập ứng dụng từ phía bên ngoài cụm Kubernetes. Tệp tin này liên kết các yêu cầu HTTP và HTTPS tới service trong cụm Kubernetes, cho phép lưu lượng truy cập ở bên ngoài tới được dịch vụ, ứng dụng mong muốn.
+
+    ```bash
+    cat <<EOF > demo-app/templates/ingress.yaml
+    ---
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      namespace: {{ default "default" .Values.namespace }}
+      name: {{ .Release.Name }}-ingress
+      annotations:
+        alb.ingress.kubernetes.io/scheme: internet-facing
+        alb.ingress.kubernetes.io/target-type: ip
+    spec:
+      ingressClassName: alb
+      rules:
+        - http:
+            paths:
+            - path: /
+              pathType: Prefix
+              backend:
+                service:
+                  name: {{ .Release.Name }}-service
+                  port:
+                    number: 8080
+    EOF
+    ```
+  
+  - `vaues.yaml` - Tệp tin này cung cấp các giá trị cấu hình mặc định cho Helm chart. Tệp tin này là quan trọng cho việc tùy chỉnh Helm chart khớp với yêu cầu hoặc kịch bản triển khai cho các môi trường khác nhau. Manifest dưới dây được giả định rằng Kubernetes namespace là `default`, sẽ được sử dụng làm [namespace selector](https://docs.aws.amazon.com/eks/latest/userguide/fargate-profile.html#fargate-profile-components) cho cấu hình Fargate.  
+
+    ```bash
+    cat <<EOF > demo-app/values.yaml
+    ---
+    namespace: default
+    replicaCount: 1
+    image:
+      pullPolicy: IfNotPresent
+    service:
+      type: NodePort
+      port: 8080
+    EOF
+    ``` 
 
 ## Tổng quan về CI/CD Pipeline
 
