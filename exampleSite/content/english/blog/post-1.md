@@ -257,7 +257,17 @@ Tại bước này, bạn sẽ viết mã ứng dụng và mã triển khai, nó
 
 ## Tổng quan về CI/CD Pipeline
 
+- Một CI/CD thông thường bao gồm các giai đoạn: source(cung cấp mã nguồn), build(xây dựng), test(kiểm thử), approval(phê duyệt), và deploy(triển khai).
+- Trong bài viết này, AWS CodeBuild được sử dụng trong giai đoạn build và deploy. AWS CodeBuild sử dụng những tệp tin đặc tả về các hành động bên trong pipeline được gọi là **buildspec**
+- Một buildspec là tập hợp của các [phase](https://docs.aws.amazon.com/codebuild/latest/userguide/build-spec-ref.html#build-spec.phases) liên quan tới các cấu hình được viết dưới dạng YAML để CodeBuild có thể đọc hiểu và sử dụng trong lúc thực thi tự động.
+
+Dưới dây, bạn sẽ học cách định nghĩa buildspec để build và deploy ứng dụng tới Amazon EKS bằng cách tận dụng [GitHub action runner quản lý bởi AWS trong AWS CodeBuild](https://docs.aws.amazon.com/codebuild/latest/userguide/action-runner-buildspec.html#action-runner-connect-source-provider)
+
 ### Định nghĩa GitHub Actions trong AWS CodeBuild
+
+Mỗi *phase* trong *buildspec* có thể bao gồm nhiều các *step* và mỗi *step* có thể thực thi các câu lệnh hoặc thực thi một GitHub Action. Mỗi *step* khi được thực thi, sẽ tương ứng là một tiến trình và filesystem của *step* đó. Một *step* tham chiếu tới một GitHub Action bằng cách chỉ định chỉ thị *[uses](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsuses)* và chỉ thị tùy chọn *[with](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepswith)* để truyền các tham số bắt buộc của Action. Theo một cách khác, một *step* có thể chỉ định các câu lệnh thông qua chỉ thị *[run](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun)*. Cần lưu ý rằng, bởi vì mỗi một *step* sở hữu tiến trình riêng, nên các thay đổi về biến môi trường sẽ không được duy trì giữa các *step*.
+
+Để truyền biến môi trường giữa các step trong giai đoạn build, bạn cần gán giá trị cho một biến môi trường mới hoặc đã tạo trước đó và ghi chúng vào [tệp tin môi trường GITHUB_ENV](https://docs.github.com/en/actions/learn-github-actions/variables#passing-values-between-steps-and-jobs-in-a-workflow). Hơn nữa, các biến môi trường này cũng có thể  được truyền giữa các giai đoạn trong CodePipeline bằng cách sử dụng kỹ thuật [exported variables directive](https://docs.aws.amazon.com/codebuild/latest/userguide/action-runner-buildspec.html#exported-env-variable-sample).
 
 ### Đặc tả trong AWS CodeBuild - Giai đoạn đóng gói/xây dựng
 
