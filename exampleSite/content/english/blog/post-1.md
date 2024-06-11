@@ -257,17 +257,163 @@ Tại bước này, bạn sẽ viết mã ứng dụng và mã triển khai, nó
 
 ## Tổng quan về CI/CD Pipeline
 
+- Một CI/CD thông thường bao gồm các giai đoạn: source(cung cấp mã nguồn), build(xây dựng), test(kiểm thử), approval(phê duyệt), và deploy(triển khai).
+- Trong bài viết này, AWS CodeBuild được sử dụng trong giai đoạn build và deploy. AWS CodeBuild sử dụng những tệp tin đặc tả về các hành động bên trong pipeline được gọi là **buildspec**
+- Một buildspec là tập hợp của các [phase](https://docs.aws.amazon.com/codebuild/latest/userguide/build-spec-ref.html#build-spec.phases) liên quan tới các cấu hình được viết dưới dạng YAML để CodeBuild có thể đọc hiểu và sử dụng trong lúc thực thi tự động.
+
+Dưới dây, bạn sẽ học cách định nghĩa buildspec để build và deploy ứng dụng tới Amazon EKS bằng cách tận dụng [GitHub action runner quản lý bởi AWS trong AWS CodeBuild](https://docs.aws.amazon.com/codebuild/latest/userguide/action-runner-buildspec.html#action-runner-connect-source-provider)
+
 ### Định nghĩa GitHub Actions trong AWS CodeBuild
+
+Mỗi *phase* trong *buildspec* có thể bao gồm nhiều các *step* và mỗi *step* có thể thực thi các câu lệnh hoặc thực thi một GitHub Action. Mỗi *step* khi được thực thi, sẽ tương ứng là một tiến trình và filesystem của *step* đó. Một *step* tham chiếu tới một GitHub Action bằng cách chỉ định chỉ thị *[uses](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsuses)* và chỉ thị tùy chọn *[with](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepswith)* để truyền các tham số bắt buộc của Action. Theo một cách khác, một *step* có thể chỉ định các câu lệnh thông qua chỉ thị *[run](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun)*. Cần lưu ý rằng, bởi vì mỗi một *step* sở hữu tiến trình riêng, nên các thay đổi về biến môi trường sẽ không được duy trì giữa các *step*.
+
+Để truyền biến môi trường giữa các step trong giai đoạn build, bạn cần gán giá trị cho một biến môi trường mới hoặc đã tạo trước đó và ghi chúng vào [tệp tin môi trường GITHUB_ENV](https://docs.github.com/en/actions/learn-github-actions/variables#passing-values-between-steps-and-jobs-in-a-workflow). Hơn nữa, các biến môi trường này cũng có thể  được truyền giữa các giai đoạn trong CodePipeline bằng cách sử dụng kỹ thuật [exported variables directive](https://docs.aws.amazon.com/codebuild/latest/userguide/action-runner-buildspec.html#exported-env-variable-sample).
 
 ### Đặc tả trong AWS CodeBuild - Giai đoạn đóng gói/xây dựng
 
+Tại bước này, bạn sẽ tạo một tệp tin `buildspec-build.yml` ở thư mục gốc của repository. Trong buildspec dưới đây, chúng ta sẽ tận dụng GitHub actions trong AWS CodeBuild để xây dựng container image và đẩy image này lên ECR. Action được sử dụng trong buildspec gồm:
+- [aws-actions/configure-aws-credentials](https://github.com/aws-actions/configure-aws-credentials): Việc truy cập API của AWS yêu cầu action phải được xác thực bằng AWS [credentials](https://docs.aws.amazon.com/IAM/latest/UserGuide/security-creds.html). Mặc định, quyền gán cho role của dịch vụ CodeBuild có thể sử dụng để thêm các API action cho quá trình xây dựng. Tuy nhiên, khi sử dụng một GitHub action trong CodeBuild, credentials từ role của dịch vụ CodeBuild cần duy trì khả năng sử dụng cho các action liên tiếp nhau(ví dụ: đăng nhập ECR, đẩy image lên ECR). Các action này cho phép tận dụng credential của role có chứa dịch vụ CodeBuild cho các action kế tiếp.
+- [aws-actions/amazon-ecr-login](https://github.com/aws-actions/amazon-ecr-login): Đăng nhập ECR registry với thông tin credential ở bước trước.
+
+```bash
+version: 0.2
+env:
+  exported-variables:
+    - IMAGE_REPO
+    - IMAGE_TAG
+phases:
+  build:
+    steps:
+      - name: Get CodeBuild Region
+        run: |
+          echo "AWS_REGION=$AWS_REGION" >> $GITHUB_ENV
+      - name: "Configure AWS credentials"
+        id: creds
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          output-credentials: true
+      - name: "Login to Amazon ECR"
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      - name: "Build, tag, and push the image to Amazon ECR"
+        run: |
+          IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+          docker build -t $IMAGE_REPO:latest .
+          docker tag $IMAGE_REPO:latest $IMAGE_REPO:$IMAGE_TAG
+          echo "$IMAGE_REPO:$IMAGE_TAG"
+          echo "IMAGE_REPO=$IMAGE_REPO" >> $GITHUB_ENV
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "Pushing image to $REPOSITORY_URI"
+          docker push $IMAGE_REPO:latest
+          docker push $IMAGE_REPO:$IMAGE_TAG
+```
+
+Trong buildspec ở phía trên, các biến `IMAGE_REPO` và `IMAGE_TAG` được thiết lập là những biến môi trường, cho phép chúng có thể được sử dụng ở giai đoạn tiếp theo.
+
 ### Đặc tả trong AWS CodeBuild - Giai đoạn triển khai
+
+Trong giai đoạn triển khai, bạn sẽ tận dụng AWS CodeBuild để triển khai các helm manifest tới EKS bằng cách sử dụng action từ cộng động [bitovi/deploy-eks-helm](https://github.com/bitovi/github-actions-deploy-eks-helm). Nhiều hownthees nữa, action [alexellis/arkade-get](https://github.com/alexellis/arkade-get) được sử dụng để cài đặt `kubectl`, công cụ này sẽ được sử dụng ở bước sau để lấy thông tin về URL của ứng dụng.
+
+Tạo một tệp tin với tên `buildspec-deploy.yml` ở thư mục gốc của repository với nội dung sau:
+
+```bash
+version: 0.2
+env:
+  exported-variables:
+   - APP_URL
+phases:
+  build:
+    steps:
+      - name: "Get Build Region"
+        run: |
+          echo "AWS_REGION=$AWS_REGION" >> $GITHUB_ENV        
+      - name: "Configure AWS credentials"
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+      - name: "Install Kubectl"
+        uses: alexellis/arkade-get@23907b6f8cec5667c9a4ef724adea073d677e221
+        with:
+          kubectl: latest
+      - name: "Configure Kubectl"
+        run: aws eks update-kubeconfig --name $CLUSTER_NAME
+      - name: Deploy Helm
+        uses: bitovi/github-actions-deploy-eks-helm@v1.2.7
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          cluster-name: ${{ env.CLUSTER_NAME }}
+          config-files: demo-app/values.yaml
+          chart-path: demo-app/
+          values: image.repository=${{ env.IMAGE_REPO }},image.tag=${{ env.IMAGE_TAG }}
+          namespace: default
+          name: demo-app
+      - name: "Fetch Application URL"
+        run: |
+          while :;do url=$(kubectl get ingress/demo-app-ingress -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' -n default);[ -z "$url" ]&&{ echo "URL is empty, retrying in 5 seconds...";sleep 5;}||{ export APP_URL="$url";echo "APP_URL set to: $APP_URL";break;};done;echo "APP_URL=$APP_URL">>$GITHUB_ENV 
+```
+
+Tới bước này, bạn cần lưu ý rằng cấu trúc thư mục của ứng dụng sẽ như sau:
+
+```
+├── Dockerfile
+├── app.py
+├── buildspec-build.yml
+├── buildspec-deploy.yml
+└── demo-app
+├── Chart.yaml
+├── charts
+├── templates
+│ ├── deployment.yaml
+│ ├── ingress.yaml
+│ └── service.yaml
+└── values.yaml
+```
+
+Bây giờ, bạn sẽ đẩy các tệp tin này tới remote repository bằng các câu lệnh dưới đây:
+
+```bash
+git add -A && git commit -m "Initial Commit"
+git push --set-upstream origin main
+```
+
+Bây giờ, hãy xác nhận ứng dụng đã được triển khai thông qua truy cập load balancer URL. Điều hướng trình duyệt tới [CodePipeline console](https://us-west-1.console.aws.amazon.com/codesuite/codepipeline/pipelines/github-actions-demo-pipeline/view?region=us-west-1). Trong pipeline có một giai đoạn phê duyệt thủ công và yêu cầu nhà vận hành đánh giá và phê duyệt bản phát hành này để pipeline có thể tiếp tục hoàn thành triển khai ứng dụng. Khi pipeline chạy thành công, URL của ứng dụng được triển khai có thể lấy từ kết quả của lần thực thi pipeline này.
 
 ### Nghiệm thu ứng dụng
 
+1. Nhấp chuột vào execution ID. Thông tin tổng quan về lần thực thi gần nhất sẽ xuất hiện.
+
+{{< image src="https://d2908q01vomqb2.cloudfront.net/7719a1c782a1ba91c031a682a0a2f8658209adbf/2024/04/29/gha_review_1.jpg" caption="Ảnh 2: Thông tin tổng quan của execution ID trong CodePipeline Console" alt="alter-text" height="" width="" position="center" command="fill" option="q100" class="img-fluid" title="image title"  webp="false" >}}
+
+2. Bên dưới tab Timeline, chọn 'Build' action.
+
+{{< image src="https://d2908q01vomqb2.cloudfront.net/7719a1c782a1ba91c031a682a0a2f8658209adbf/2024/04/29/gha_review_2.jpg" caption="Ảnh 3: Điều hướng tới tab timeline và xem thông tin của giai đoạn stage" alt="alter-text" height="" width="" position="center" command="fill" option="q100" class="img-fluid" title="image title"  webp="false" >}}
+
+3. Sao chép URL của load balancer cho ứng dụng trong phần 'Output varialbes'.
+
+{{< image src="https://d2908q01vomqb2.cloudfront.net/7719a1c782a1ba91c031a682a0a2f8658209adbf/2024/04/29/gha_review_3.jpg" caption="Ảnh 4: Sao chép APP_URL từ Output Variables trong Deploy action" alt="alter-text" height="" width="" position="center" command="fill" option="q100" class="img-fluid" title="image title"  webp="false" >}}
+
+4. Mở URL trên trình duyệt và chờ đợi dòng chữ như dưới đây.
+
+{{< image src="https://d2908q01vomqb2.cloudfront.net/7719a1c782a1ba91c031a682a0a2f8658209adbf/2024/04/29/gha_review_4.jpg" caption="Ảnh 5: Kết quả hiển thị của ứng dụng được triển khai trên Amazon EKS" alt="alter-text" height="" width="" position="center" command="fill" option="q100" class="img-fluid" title="image title"  webp="false" >}}
+
+Bạn cũng có thể xem lại log của quá trình xây dựng cùng với hoạt động của GitHub action trong [console](https://us-west-1.console.aws.amazon.com/codesuite/codebuild/projects?region=us-west-1) của AWS CodeBuild.
+
 ## Dọn dẹp môi trường
+
+Để tránh tổn thất chi chí trong tương lai, bạn nên dọn dẹp các tài nguyên đã tạo ra:
+  - Xóa ứng dụng bằng cấu lệnh helm, điều này cũng sẽ đi kèm với việc xóa ALB:
+    ```bash
+    helm uninstall demo-app
+    ```
+
+  - Xóa CloudFormation stack(github-actions-demo-base) bằng câu lệnh sau:
+    ```bash
+    aws cloudformation delete-stack \
+        --stack-name github-actions-demo-base \
+        -–region $AWS_REGION
+    ```
 
 ## Tổng kết
 
-## Tác giả
-
+Trong hướng dẫn này, bạn đã học cách tận dụng sức mạnh từ sự kết hợp các GitHub Action và AWS CodeBuild để đơn giản hóa và tự động triển khai ứng dụng Python trên Amazon EKS. Hướng tiếp cận này không chỉ làm mượt quá trình triển khai mà còn đảm bảo rằng ứng dụng của bạn sẽ được xây dựng và triển khai một cách an toàn. Bạn có thể mở rộng pipeline với những giai đoạn thêm vào, ví dụ như kiểm thử, quét an toàn thông tin, phụ thuộc vào yêu cầu của dự án. Ngoài ra, giải pháp này cũng có thể áp dụng cho các ngôn ngữ lập trình khác.
