@@ -313,7 +313,7 @@ Trong buildspec ở phía trên, các biến `IMAGE_REPO` và `IMAGE_TAG` đư�
 
 ### Đặc tả trong AWS CodeBuild - Giai đoạn triển khai
 
-Trong giai đoạn triển khai, bạn sẽ tận dụng AWS CodeBuild để triển khai các helm manifest tới EKS bằng cách sử dụng action từ cộng động [bitovi/deploy-eks-helm](https://github.com/bitovi/github-actions-deploy-eks-helm). Nhiều hownthees nữa, action [alexellis/arkade-get](https://github.com/alexellis/arkade-get) được sử dụng để cài đặt `kubectl`, công cụ này sẽ được sử dụng ở bước sau để lấy thông tin về URL của ứng dụng.
+Trong giai đoạn triển khai, bạn sẽ tận dụng AWS CodeBuild để triển khai các helm manifest tới EKS bằng cách sử dụng action từ cộng động [bitovi/deploy-eks-helm](https://github.com/bitovi/github-actions-deploy-eks-helm). Tiếp theo, action [alexellis/arkade-get](https://github.com/alexellis/arkade-get) được sử dụng để cài đặt `kubectl`, công cụ này sẽ được sử dụng ở bước sau để lấy thông tin về URL của ứng dụng.
 
 Tạo một tệp tin với tên `buildspec-deploy.yml` ở thư mục gốc của repository với nội dung sau:
 
@@ -355,7 +355,7 @@ phases:
 
 Tới bước này, bạn cần lưu ý rằng cấu trúc thư mục của ứng dụng sẽ như sau:
 
-```
+```text
 ├── Dockerfile
 ├── app.py
 ├── buildspec-build.yml
