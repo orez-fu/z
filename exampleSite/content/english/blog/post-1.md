@@ -4,9 +4,9 @@ meta_title: ""
 description: "this is meta description"
 date: 2022-04-04T05:00:00Z
 image: ""
-categories: ["Cloud", "AWS"]
+categories: ["Cloud", "AWS", "CI/CD"]
 author: "Orez Fu"
-tags: ["vi", "cloud", "aws"]
+tags: ["cloud", "aws", "cicd"]
 draft: false
 ---
 
