@@ -12,29 +12,33 @@ draft: false
 
 > Đây là bản dịch cho bài viết [Monitor Python apps with Amazon CloudWatch Application Signals (Preview)](https://aws.amazon.com/blogs/mt/monitoring-python-apps-using-amazon-cloudwatch-application-signals/)
 
-Bảng thuật ngữ
-framework
-metrics
-trace
-dashboard
+### Bảng thuật ngữ
 
-annotation
-backend cho Terraform
-manifest YAML
-deployment YAML
-docker image
-pod
-canary
+Trước khi đi vào nội dung của bài viết, chúng tôi sẽ đề cập tới bạn các thuật ngữ, nếu bạn chưa quen thuộc với chúng, hãy đọc chúng trước khi bắt đầu nội dung, hiểu những thuật ngữ sẽ giúp bạn tiếp cận vấn đề và giải quyết dễ dàng hơn. Nếu đã quen thuộc với các thuật ngữ này, bạn hãy bắt đầu đi vào nội dung từ phẩn **Lời mở đầu**.
 
+| Thuật ngữ | Giải thích |
+|--|--|
+| metrics | Được đề cập tới ngữ cảnh của giám sát hệ thống, metrics là những dữ liệu biểu thị tình trạng, trạng thái hoạt động của hệ thống theo thời gian, ví dụ: độ trễ phản hồi của API, tình trạng sử dụng tài nguyên RAM của server, ... |
+| trace | Về kỹ thuật, trace đại diện cho một yêu cầu toàn trình trong hệ thống phân tán từ phía người dùng tới tương tác giữa các dịch vụ trong đó. Khi đề cập tới dữ liệu, trace sẽ mang thông tin toàn tập trung trong quá trình đi qua các service trong hệ thống phân tán. Dữ liệu trace sẽ tập trung về tính tương tác trong hệ thống phân tán. |
+| dashboard | Bao gồm các biểu đồ thông tin để trực quan hóa các dữ liệu metrics và trace, giúp người sử dụng dễ dàng hình dung, hiểu về tình trạng của các dịch vụ và hệ thống. |
+| backend cho Terraform | Nơi lưu trữ tệp tin trạng thái khi Terraform hoạt động. Ví dụ: tệp tin cục bộ, AWS S3, ... |
+| manifest YAML | Tệp tin ở định dạng YAML mô tả, định nghĩa về đối tượng mong muốn tạo ra trong cụm Kubernetes, ví dụ: pod, service, ... trong Kubernetes |
+| deployment YAML | Chỉ các tệp tin manifest YAML để định nghĩa lên đối tượng deployment trong Kubernetes |
+| annotation | Được đề cập trong ngữ cảnh của các manifest trong Kubernetes, mang thông tin phụ trợ cho các ứng dụng, hệ thống ngoài sử dụng để kết nối thông tin. |
+| docker image | |
+| pod | Đối tượng mà Kubernetes quản lý, là loại tài nguyên tính toán, môi trường cho phép các ứng dụng và dịch vụ được cài đặt bên trong dưới dạng các container |
+| canary | Trong ngữ cảnh của giám sát, canary là những những tín hiệu, yêu cầu được gửi đi trong các cuộc kiểm tra chức năng, tính năng mới của ứng dụng mà không làm ảnh hưởng tới trải nghiệm người dùng.  |
 
+## Lời mở đầu
 
 AWS đã công bố [Amazon CloudWatch Application Signals](https://repost.aws/articles/ARTvHbg1TfRMijt-V0YGSudw/observe-your-applications-with-amazon-cloudwatch-application-signals-preview) trong sự kiện re:Invent 2023. Đây là một tính năng giúp giám sát và hiểu rõ tình trạng của các ứng dụng Java. Ngày hôm nay, chúng tôi vui mừng thông báo rằng hiện tại Application Signals đã hỗ trợ các [ứng dụng Python](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Application-Signals-supportmatrix.html). Việc kích hoạt Application Signals cho phép sử dụng "AWS Distro for OpenTelemetry" (ADOT) để đo lường các ứng dụng Python mà không cần thay đổi mã ứng dụng. Điều này cho phép bạn thu thập các metric và trace chính cho các thư viện và nền tảng được phát triển bằng Python. Điều này cho phép bạn nhanh chóng phân loại tình trạng trong quá trình vận hành và giám sát các mục tiêu về hiệu năng ứng dụng, mà không cần viết thêm các mã tùy chỉnh hay tạo dashboard.
 
-Trong bài viết này, chúng tôi sẽ cung cấp các bước chi tiết về cách tích hợp Application Signals với các ứng dụng Python được triển khai trên một cụm Amazon EKS. Đặc biệt, chúng tôi sẽ tập trung vào việc sử dụng tích hợp này để giám sát các ứng dụng Python được phát triển dựa trên nền tảng [Django](https://www.djangoproject.com/) và tận dụng các thư viện phổ biến như [psycopg2](https://pypi.org/project/psycopg2/), [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html) và [requests](https://pypi.org/project/requests/). Sau đó, chúng tôi sẽ trực quan hóa tình trạng ứng dụng bằng bảng điều khiển Application Signals. 
+Trong bài viết này, chúng tôi sẽ cung cấp các bước chi tiết về cách tích hợp Application Signals với các ứng dụng Python được triển khai trên một cụm Amazon EKS. Đặc biệt, chúng tôi sẽ tập trung vào việc sử dụng tích hợp này để giám sát các ứng dụng Python được phát triển dựa trên nền tảng [Django](https://www.djangoproject.com/) và tận dụng các thư viện phổ biến như [psycopg2](https://pypi.org/project/psycopg2/), [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html) và [requests](https://pypi.org/project/requests/). Sau đó, chúng tôi sẽ trực quan hóa tình trạng ứng dụng bằng bảng điều khiển Application Signals.
 
 ## Tổng quan giải pháp
 
 Dưới đây là tổng quan chi tiết của giải pháp:
+
 - Ứng dụng demo được xây dựng bằng nền tảng Spring Cloud và Django, trong đó, mỗi dịch vụ tự đăng ký với dịch vụ [Eureka discovery-service](https://spring.io/guides/gs/service-registration-and-discovery). Mã nguồn của ứng dụng có thể được tìm thấy trên [GitHub repository](https://github.com/aws-observability/application-signals-demo/).
 - Chúng ta có 2 dịch vụ `insurances` và `billing` đều được viết trên nền tảng Django. Các dịch vụ này hiển thị các API thông qua nền tảng Django REST và gọi tới các dịch vụ bên ngoài bằng các thư viện.
 - Các dịch vụ cũng có sự tương tác với Amazon RDS PostgreSQL thông qua thư viện psycopg2 và lưu trữ các thông tin thanh toán trong AWS DynamoDB thông qua thư viện boto3.
@@ -201,7 +205,7 @@ Với một vài click sẽ hiển thị thông tin liên quan về trace. Đi�
 
 ### Service Map
 
-Để hiển thị Service Map, mở [bảng điều khiển CloudWatch](https://console.aws.amazon.com/cloudwatch/) và chọn **Service Map** bên dưới phần **Application Signals** trong khung điều hướng bên trái. Chọn node dịch vụ `billing-service-python` như **Ảnh 8** để hiển thị các kết nối với các dịch vụ và thành phần phụ thuộc, giúp bạn hiểu về mô hình và luồng thực thi trong ứng dụng. Điều này đặc biệt hữu dụng nếu có các dịch vụ không do đội ngũ của bạn phát triển. 
+Để hiển thị Service Map, mở [bảng điều khiển CloudWatch](https://console.aws.amazon.com/cloudwatch/) và chọn **Service Map** bên dưới phần **Application Signals** trong khung điều hướng bên trái. Chọn node dịch vụ `billing-service-python` như **Ảnh 8** để hiển thị các kết nối với các dịch vụ và thành phần phụ thuộc, giúp bạn hiểu về mô hình và luồng thực thi trong ứng dụng. Điều này đặc biệt hữu dụng nếu có các dịch vụ không do đội ngũ của bạn phát triển.
 
 {{< image src="https://d2908q01vomqb2.cloudfront.net/972a67c48192728a34979d9a35164c1295401b71/2024/05/02/Service-Map.png" caption="Ảnh 8: Hiển thị mô hình ứng dụng sử dụng Service Map" alt="Application topology" height="" width="" position="center" command="fill" option="q100" class="img-fluid" title="image title"  webp="false" >}}
 
@@ -235,6 +239,3 @@ Trong bài viết này, bạn đã hiểu rõ hơn về cách tận dụng Cloud
 Hơn nữa, chúng ta đã khám phá cách trực quan hóa các hoạt động tổng quan và tình trạng hoạt động của các ứng dụng, dịch vụ bằng các dashboard đã được dựng sẵn bởi Application Signals. Bằng cách tận dụng các dashboard này, bạn có thể dễ dàng truy cập các số liệu về hiệu năng chính và liên kết chúng với dữ liệu trace, cho phép bạn nhanh chóng xác định và giải quyết mọi vấn đề cơ bản chỉ bằng vài click. Ở bước tiếp theo, chúng tôi khuyến khích bạn dùng thử Applicationo Signal với môi trường của bạn.
 
 Vui lòng tham chiếu tới [Tài liệu CloudWatch Application Signals](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Application-Monitoring-Sections.html) để khám phá thêm nhiều thông tin hoặc xem [các ca sử dụng CloudWatch Application Signals](https://catalog.workshops.aws/observability/en-US/use-cases/application-signals) trong [Hội thảo về Observability] để có trải nghiệm thực tế.
-
-
-
