@@ -19,19 +19,19 @@ Trước khi đi vào nội dung của bài viết, chúng tôi sẽ đề cập
 | Thuật ngữ | Giải thích |
 |--|--|
 | metrics | Được đề cập tới ngữ cảnh của giám sát hệ thống, metrics là những dữ liệu biểu thị tình trạng, trạng thái hoạt động của hệ thống theo thời gian, ví dụ: độ trễ phản hồi của API, tình trạng sử dụng tài nguyên RAM của server, ... |
-| trace | Về kỹ thuật, trace đại diện cho một yêu cầu toàn trình trong hệ thống phân tán từ phía người dùng tới tương tác giữa các dịch vụ trong đó. Khi đề cập tới dữ liệu, trace sẽ mang thông tin toàn tập trung trong quá trình đi qua các service trong hệ thống phân tán. Dữ liệu trace sẽ tập trung về tính tương tác trong hệ thống phân tán. |
+| trace | Về kỹ thuật, trace đại diện cho một yêu cầu toàn trình trong hệ thống phân tán từ phía người dùng tới tương tác giữa các dịch vụ trong đó. Khi đề cập tới dữ liệu, trace sẽ mang thông tin tập trung toàn trình của một yêu cầu đi qua các service trong hệ thống phân tán. Dữ liệu trace sẽ tập trung về tính tương tác trong hệ thống phân tán. |
 | dashboard | Bao gồm các biểu đồ thông tin để trực quan hóa các dữ liệu metrics và trace, giúp người sử dụng dễ dàng hình dung, hiểu về tình trạng của các dịch vụ và hệ thống. |
 | backend cho Terraform | Nơi lưu trữ tệp tin trạng thái khi Terraform hoạt động. Ví dụ: tệp tin cục bộ, AWS S3, ... |
 | manifest YAML | Tệp tin ở định dạng YAML mô tả, định nghĩa về đối tượng mong muốn tạo ra trong cụm Kubernetes, ví dụ: pod, service, ... trong Kubernetes |
 | deployment YAML | Chỉ các tệp tin manifest YAML để định nghĩa lên đối tượng deployment trong Kubernetes |
 | annotation | Được đề cập trong ngữ cảnh của các manifest trong Kubernetes, mang thông tin phụ trợ cho các ứng dụng, hệ thống ngoài sử dụng để kết nối thông tin. |
-| docker image | |
+| docker image | Là bản đóng gói chuẩn bao gồm các tệp tin, công cụ, thư viện để sẵn sàng khởi chạy nên các docker container |
 | pod | Đối tượng mà Kubernetes quản lý, là loại tài nguyên tính toán, môi trường cho phép các ứng dụng và dịch vụ được cài đặt bên trong dưới dạng các container |
 | canary | Trong ngữ cảnh của giám sát, canary là những những tín hiệu, yêu cầu được gửi đi trong các cuộc kiểm tra chức năng, tính năng mới của ứng dụng mà không làm ảnh hưởng tới trải nghiệm người dùng.  |
 
 ## Lời mở đầu
 
-AWS đã công bố [Amazon CloudWatch Application Signals](https://repost.aws/articles/ARTvHbg1TfRMijt-V0YGSudw/observe-your-applications-with-amazon-cloudwatch-application-signals-preview) trong sự kiện re:Invent 2023. Đây là một tính năng giúp giám sát và hiểu rõ tình trạng của các ứng dụng Java. Ngày hôm nay, chúng tôi vui mừng thông báo rằng hiện tại Application Signals đã hỗ trợ các [ứng dụng Python](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Application-Signals-supportmatrix.html). Việc kích hoạt Application Signals cho phép sử dụng "AWS Distro for OpenTelemetry" (ADOT) để đo lường các ứng dụng Python mà không cần thay đổi mã ứng dụng. Điều này cho phép bạn thu thập các metric và trace chính cho các thư viện và nền tảng được phát triển bằng Python. Điều này cho phép bạn nhanh chóng phân loại tình trạng trong quá trình vận hành và giám sát các mục tiêu về hiệu năng ứng dụng, mà không cần viết thêm các mã tùy chỉnh hay tạo dashboard.
+AWS đã công bố [Amazon CloudWatch Application Signals](https://repost.aws/articles/ARTvHbg1TfRMijt-V0YGSudw/observe-your-applications-with-amazon-cloudwatch-application-signals-preview) trong sự kiện re:Invent 2023. Đây là một tính năng giúp giám sát và hiểu rõ tình trạng của các ứng dụng Java. Ngày hôm nay, chúng tôi vui mừng thông báo rằng hiện tại Application Signals đã hỗ trợ các [ứng dụng Python](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Application-Signals-supportmatrix.html). Việc kích hoạt Application Signals cho phép sử dụng "AWS Distro for OpenTelemetry" (ADOT) để đo lường các ứng dụng Python mà không cần thay đổi mã nguồn của ứng dụng. Điều này cho phép bạn thu thập các metric và trace chính cho các thư viện và nền tảng được phát triển bằng Python. Điều này cho phép bạn nhanh chóng phân loại tình trạng trong quá trình vận hành và giám sát các mục tiêu về hiệu năng ứng dụng, mà không cần viết thêm các mã tùy chỉnh hay tạo dashboard.
 
 Trong bài viết này, chúng tôi sẽ cung cấp các bước chi tiết về cách tích hợp Application Signals với các ứng dụng Python được triển khai trên một cụm Amazon EKS. Đặc biệt, chúng tôi sẽ tập trung vào việc sử dụng tích hợp này để giám sát các ứng dụng Python được phát triển dựa trên nền tảng [Django](https://www.djangoproject.com/) và tận dụng các thư viện phổ biến như [psycopg2](https://pypi.org/project/psycopg2/), [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html) và [requests](https://pypi.org/project/requests/). Sau đó, chúng tôi sẽ trực quan hóa tình trạng ứng dụng bằng bảng điều khiển Application Signals.
 
@@ -39,13 +39,13 @@ Trong bài viết này, chúng tôi sẽ cung cấp các bước chi tiết về
 
 Dưới đây là tổng quan chi tiết của giải pháp:
 
-- Ứng dụng demo được xây dựng bằng nền tảng Spring Cloud và Django, trong đó, mỗi dịch vụ tự đăng ký với dịch vụ [Eureka discovery-service](https://spring.io/guides/gs/service-registration-and-discovery). Mã nguồn của ứng dụng có thể được tìm thấy trên [GitHub repository](https://github.com/aws-observability/application-signals-demo/).
-- Chúng ta có 2 dịch vụ `insurances` và `billing` đều được viết trên nền tảng Django. Các dịch vụ này hiển thị các API thông qua nền tảng Django REST và gọi tới các dịch vụ bên ngoài bằng các thư viện.
+- Ứng dụng demo được xây dựng dựa trên nền tảng Spring Cloud và Django, trong đó, mỗi dịch vụ tự đăng ký với dịch vụ [Eureka discovery-service](https://spring.io/guides/gs/service-registration-and-discovery). Mã nguồn của ứng dụng có thể được tìm thấy trên [GitHub repository](https://github.com/aws-observability/application-signals-demo/).
+- Chúng ta có 2 dịch vụ `insurances` và `billing` đều được viết trên nền tảng Django. Các dịch vụ này phục vụ các API thông qua nền tảng Django REST và gọi tới các dịch vụ bên ngoài bằng các thư viện có sẵn.
 - Các dịch vụ cũng có sự tương tác với Amazon RDS PostgreSQL thông qua thư viện psycopg2 và lưu trữ các thông tin thanh toán trong AWS DynamoDB thông qua thư viện boto3.
 
 {{< image src="https://d2908q01vomqb2.cloudfront.net/972a67c48192728a34979d9a35164c1295401b71/2024/05/02/image-20.png" caption="Ảnh 1: Các thư viện và nền tảng Python sử dụng trong ứng dụng demo" alt="Thư viện Python sử dụng trong Demo" height="" width="" position="center" command="fill" option="q100" class="img-fluid" title="image title"  webp="false" >}}
 
-Chúng ta sẽ sử dụng Terraform để triển khai các tài nguyên được hiển thị ở **Ảnh 2**. Chúng tôi sẽ sử dụng thêm add-on [Amazon CloudWatch Observability EKS](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Container-Insights-setup-EKS-addon.html) để triển khai CloudWatch agent và Fluent Bit thông qua tài nguyên DaemonSet để điều phối metric, log, và trace.
+Chúng ta sẽ sử dụng Terraform để triển khai các tài nguyên được hiển thị ở **Ảnh 2**. Chúng tôi sẽ sử dụng thêm ứng dụng phụ trợ [Amazon CloudWatch Observability EKS](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Container-Insights-setup-EKS-addon.html) để triển khai CloudWatch agent và Fluent Bit thông qua tài nguyên DaemonSet để điều phối metric, log, và trace.
 
 {{< image src="https://d2908q01vomqb2.cloudfront.net/972a67c48192728a34979d9a35164c1295401b71/2024/04/28/Figure-2-4.png" caption="Ảnh 2: Kiến trúc giải pháp" alt="Solution Architecture" height="" width="" position="center" command="fill" option="q100" class="img-fluid" title="image title"  webp="false" >}}
 
@@ -66,7 +66,7 @@ Làm theo hướng dẫn để [kích hoạt Application Signal](https://docs.aw
 
 ### Triển khai ứng dụng bằng Terraform
 
-1. Chúng ta sẽ **cấu hình biến môi trường** được yêu cầu để triển khai ứng dụng bằng Terraform, đồng thời có sử dụng **Amazon S3 bucket** làm backend bằng các câu lệnh dưới đây.
+1. Chúng ta sẽ **cấu hình biến môi trường** được yêu cầu để triển khai ứng dụng bằng Terraform, đồng thời có sử dụng **Amazon S3 bucket** làm backend cho Terraform bằng các câu lệnh dưới đây.
 
 ```bash
 export AWS_REGION=<your-aws-region>
@@ -154,7 +154,7 @@ visits-service-java-85b9c5c45-vwkht         1/1     Running   0             6m25
 visits-service-java-85b9c5c45-vx6gj         1/1     Running   0             6m25s
 ```
 
-2. Tiếp theo chạy lệnh sau để **lấy thông tin URL của ứng dụng**. Mở URL trên trình duyệt web và **khám phá ứng dụng**. Sẽ mất 2-3 phút để URL hoạt động.
+2. Tiếp theo, chạy lệnh sau để **lấy thông tin URL của ứng dụng**. Mở URL trên trình duyệt web và **khám phá ứng dụng**. Sẽ mất 2-3 phút để URL hoạt động.
 
 ```bash
 echo "http://$(kubectl get ingress -o json --output jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}')"
@@ -162,7 +162,7 @@ echo "http://$(kubectl get ingress -o json --output jsonpath='{.items[0].status.
 
 ### Tạo canary trong CloudWatch Synthetics để giả lập lưu lượng truy cập
 
-Tiếp theo, chúng ta sẽ **tạo các canary** bằng đoạn lệnh dưới đây, đoạn lệnh sẽ chạy trong khoảng 10 phút để tạo ra lưu lượng truy cập tới ứng dụng, giả lập hành vi truy cập ứng dụng từ phía người dùng ứng dụng.
+Tiếp theo, chúng ta sẽ **tạo các canary** bằng đoạn lệnh dưới đây, đoạn lệnh sẽ chạy trong khoảng 10 phút để tạo ra lưu lượng truy cập tới ứng dụng, thay vì người dùng ứng dụng thực sự, chúng ta sẽ giả lập hành vi truy cập ứng dụng bằng canary.
 
 ```bash
 endpoint=$(kubectl get ingress -o json  --output jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}')
@@ -183,7 +183,7 @@ CloudWatch Application Signals tự động khám phá và liên kết các dị
 
 #### Chi tiết thông tin dịch và các phụ thuộc
 
-Khi chọn một dịch vụ, bạn sẽ chuyển hướng tới trang thông tin chi tiết của dịch vụ có bật Application Signal, hiển thị các thông tin bao gồm: tổng quan, tình trạng vận hành, các thành phần phụ thuộc, các canary và các yêu cầu từ phía người dùng.
+Khi chọn một dịch vụ, bạn sẽ chuyển hướng tới trang thông tin chi tiết của dịch vụ có bật Application Signal, các thông tin hiển thị bao gồm: tổng quan, tình trạng vận hành, các thành phần phụ thuộc, các canary và các yêu cầu từ phía người dùng.
 
 Trong **Ảnh 4**, phần Service Overview tổng quát về các thành phần tạo nên dịch vụ của bạn và làm nổi bật các metric để giúp bạn xác định sự cố, là các thông tin trong quá trình khắc phục sự cố.
 
