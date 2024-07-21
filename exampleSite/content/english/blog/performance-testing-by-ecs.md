@@ -25,8 +25,8 @@ Performance Testing là phương pháp kiểm tra, đánh giá hệ thống về
 Các ứng dụng khác nhau có thể yêu cầu các thử nghiệm và số liệu khác nhau. Điều quan trọng là cần hiểu loại kiểm thử nào sẽ cung cấp kết quả phù hợp nhất. Chúng tôi sẽ cung cấp tới bạn một vài loại hình kiểm thử phổ biến:
 
 - **Load Testing**: Load Testing được thực hiện để kiểm tra tình trạng hoạt động của ứng dụng khi nó phải nhận các yêu cầu từ một số lượng người dùng cố định. Ví dụ: bạn thử nghiệm với 1000 người dùng đồng thời sử dụng dịch vụ web trong một khoảng thời gian hữu hạn.
-- **Stress Testing**: Stress testing khá giống với load testing, ngoại trừ việc nó rõ ràng nhắm tới tìm ra mức tối đa về mặt hiệu năng mà hệ thống có thể đạt tới được. Stress testing cũng là cách thức để biết về phản ứng của hệ thống trong tình trạng quá tải, liệu hệ thống phản ứng ra sao. Nói tóm lại, bạn thử nghiệm với số lượng yêu cầu người dùng ngày càng tăng cho đến khi nó tiệm cận với sự cố quá tải. 
-- **Endurance Testing**: Endurance Testing hay còn gọi là Soak Testing là phương pháp kiểm thử ứng dụng trong điều kiện thực tế hoặc tương tự như ở môi trường người dùng cuối trong một khoảng thời gian dài. Ví dụ: bạn tiến hành cuộc kiểm thử với số lượng người dùng  cho các tính năng chính của ứng dụng trong một khoảng thời gian dài, tối thiểu 24 giờ.
+- **Stress Testing**: Stress testing khá giống với load testing, ngoại trừ việc nó rõ ràng nhắm tới tìm ra mức tối đa về mặt hiệu năng mà hệ thống có thể đạt tới được. Stress testing cũng là cách thức để biết về phản ứng của hệ thống trong tình trạng quá tải, liệu hệ thống phản ứng ra sao. Nói tóm lại, bạn thử nghiệm với số lượng yêu cầu người dùng ngày càng tăng cho đến khi nó tiệm cận với sự cố quá tải.
+- **Endurance Testing**: Endurance Testing hay còn gọi là Soak Testing là phương pháp kiểm thử ứng dụng trong điều kiện thực tế hoặc tương tự như ở môi trường người dùng cuối trong một khoảng thời gian dài. Ví dụ: bạn tiến hành cuộc kiểm thử với số lượng người dùng cho các tính năng chính của ứng dụng trong một khoảng thời gian dài, tối thiểu 24 giờ.
 
 ## Về giải pháp Locust
 
