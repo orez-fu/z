@@ -2,7 +2,7 @@
 title: "Giám sát ứng dụng Python bằng Amazon CloudWatch Application Signals"
 meta_title: ""
 description: "this is meta description"
-date: 2022-04-04T05:00:00Z
+date: 2024-06-20T12:00:00Z
 image: ""
 categories: ["Cloud", "AWS", "Monitoring"]
 author: "Orez Fu"
