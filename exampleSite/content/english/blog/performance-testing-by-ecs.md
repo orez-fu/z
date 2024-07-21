@@ -13,7 +13,9 @@ draft: false
 ## Lời mở đầu
 
 Một hệ thống, ứng dụng hoặc trang web phát triển đầy đủ các tính năng vẫn chưa phải phải là một **production hoàn thiện**. Để trở thành một **production**, hệ thống, ứng dụng cần phải đáp ứng được đầy đủ các tiêu chí về các yêu cầu phi chức năng theo tài liệu SRS(System Requirement Specification). Trong bài viết này, chúng ta sẽ đề cập tới yêu cầu phi chức năng về tính ổn định và độ tin cậy của hệ thống, ứng dụng thông qua việc đảm bảo hiệu năng, khả năng chịu tải của chúng. Điều này đặc biệt quan trọng khi một hệ thống phải đối mặt với một số lượng lớn người và có thể cùng lúc sử dụng các tính năng được cung cấp.
+
 Để đánh giá hiệu năng của một hệ thống, ứng dụng, **Performance Testing** là phương pháp phổ biến được sử dụng. Trong performance testing có những loại phục vụ các chủ đích khác nhau, bạn sẽ tìm hiểu tổng quan về chúng trong phần đầu của bài viết. Về mặt công nghệ đáp ứng kỹ thuật này, chúng ta sẽ tiếp cận với giải pháp Locust để tiến hành các cuộc thử nghiệm về hiệu năng. Để có giả lập lượng lớn người dùng truy cập hệ thống, Locust sẽ được triển khai theo dạng cluster với nhiều worker node.
+
 Thông qua bài viết này, chúng tôi sẽ cung cấp các bước chi tiết về tạo cluster Locust trên công nghệ AWS Elastic Container Service. Chúng ta sẽ tập trung đặc biệt vào khả năng của AWS ECS để có thể dễ dàng tạo môi trường và thực hiện lượng lớn các yêu cầu giả lập tới hệ thống, ứng dụng. Sau đó, bạn sẽ sử dụng giao diện web của Locust để yêu cầu tải và trực tiếp xem báo cáo, kết quả.
 
 ## Tổng quan về Performance Testing
@@ -31,6 +33,7 @@ Các ứng dụng khác nhau có thể yêu cầu các thử nghiệm và số l
 ## Về giải pháp Locust
 
 Trích dẫn trực tiếp từ trang chủ của Locust, "Locust is an easy to use, scriptable and scalable performance testing tool". Ý tưởng của công cụ này là dùng một nhóm các máy cài đặt Locust để có thể giả lập nhiều các yêu cầu tới hệ thống. Các hành vi giả lập yêu cầu của người dùng được định nghĩa bằng các kịch bản viết bằng mã nguồn python. Locust cung cấp giao diện web cho phép cấu hình, theo dõi quá trình thực hiện kiểm thử theo thời gian thực, và các kết quả cũng được trực quan hóa trên đó.
+
 Dưới đây là các tính năng chính của Locust:
 
 - **Python-Based**: Các kịch bản người dùng được viết bằng Python, linh hoạt khi tạo các kịch bản thực tế, phức tạp.
