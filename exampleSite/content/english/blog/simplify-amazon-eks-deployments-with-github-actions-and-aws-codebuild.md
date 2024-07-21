@@ -2,7 +2,7 @@
 title: "Đơn giản hóa triển khai Amazon EKS với GitHub Actions và AWS CodeBuild"
 meta_title: ""
 description: "this is meta description"
-date: 2022-04-04T05:00:00Z
+date: 2024-06-26T12:00:00Z
 image: ""
 categories: ["Cloud", "AWS", "CI/CD"]
 author: "Orez Fu"
