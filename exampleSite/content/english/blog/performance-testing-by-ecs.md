@@ -1,8 +1,8 @@
 ---
-title: "Xây dựng hệ thống Load Testing bằng Amazon Elastic Container Service"
+title: "Xây dựng hệ thống Performance Testing Locust bằng Amazon Elastic Container Service"
 meta_title: ""
 description: ""
-date: 2024-07-26T05:00:00Z
+date: 2024-07-20T05:00:00Z
 image: ""
 categories: ["Cloud", "AWS", "Automation Testing"]
 author: "Orez Fu"
