@@ -49,11 +49,13 @@ Dưới đây là các tính năng chính của Locust:
 
 Giải pháp được đề xuất trong bài viết sử dụng một số công cụ AWS để thiết lập môi trường kiểm thử hiệu năng nhằm đáp ứng khả năng mở rộng tốt, triển khai đơn giản và duy trì ở mức chi phí thấp:
 
-- AWS Elastic Container Service
-- AWS Fargate
-- AWS CloudWatch
-- Cluster Locust
-- Ứng dụng đích
+- AWS Elastic Container Service: Dịch vụ điều phối container được quản lý trên AWS giúp bạn triển khai, quản lý và mở rộng quy mô ứng dụng trong bộ chứa hiệu quả hơn.
+- AWS Fargate: Dịch vụ serverless trên AWS chịu trách nhiệm quản lý máy chủ, có thể kích hợp với các dịch vụ khác giúp dễ dàng hơn trong công tác triển khai và quản lý tài nguyên máy chủ.
+- AWS CloudWatch: Dịch vụ AWS cho phép bạn giám sát ứng dụng, phản hồi những thay đổi về hiệu suất, tối ưu hóa việc sử dụng tài nguyên và cung cấp thông tin chi tiết về tình trạng hoạt động.
+- Cluster Locust: Giải pháp kiểm thử hiệu năng Locust sẽ được triển khai theo mô hình cluster, cho phép giả lập lượng lớn người dùng trong cuộc kiểm thử.
+- Ứng dụng đích: Ứng dụng mà chúng ta sẽ thực muốn biết về hiệu năng, hoạt động dựa trên các cuộc kiểm thử.
+
+{{< image src="images/ws_01_high_level.png" caption="Ảnh 1: Kiến trúc triển khai trên AWS" alt="alter-text" height="" width="" position="center" command="fill" option="q100" class="img-fluid" title="image title"  webp="false" >}}
 
 Hành trình của kiểm thử bắt đầu từ hình thành lên kịch bản kiểm thử. Tiếp theo là bước biến ý tưởng thành hiện thực, định nghĩa chúng trong mã nguồn python. Cuộc kiểm thử sẽ được tiến hành trên môi trường cluster Locust được hình thành trên các dịch vụ của AWS. Chi tiết các bước để tiến hành kiểm thử tự động được đề cập trong bài viết được mô tả dưới đây:
 
@@ -67,20 +69,87 @@ Hành trình của kiểm thử bắt đầu từ hình thành lên kịch bản
 
 Bạn sẽ cần chuẩn bị theo các yêu cầu dưới đây để sẵn sàng đi tới chi tiết các bước thực hiện:
 
-- Tài khoản AWS
-- Cài đặt công cụ dòng lệnh AWS CLI và thiết lập cấu hình cho AWS CLI
-- Cài đặt Terraform
+- [Tài khoản AWS](https://aws.amazon.com/)
+- [Cài đặt công cụ dòng lệnh AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html)
+- [Thiết lập cấu hình bí mật cho AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)
+- [Cài đặt Terraform](https://learn.hashicorp.com/tutorials/terraform/install-cli)
 
 ## Hướng dẫn chi tiết
 
+Trước khi bắt đầu các bước trong phần chi tiết, bạn thực sự sẽ cần tạo [Key Pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-key-pairs.html) chuẩn bị sẵn sàng cho kết nối tới EC2.
+
 ### Triển khai ECS Cluster
+
+Để thuận tiện nhất trong bài viết, chúng ta sẽ triển khai hạ tầng ECS Cluster thông qua Terraform. Đồng thời, giữ bài viết ở mức đơn giản, chúng ta sẽ sử dụng backend mặc định cho Terraform, tệp tin state trên máy cá nhân. Mã nguồn Terraform đã sẵn sàng, chúng ta sẽ clone kho lưu trữ này và cung cấp hạ tầng bằng Terraform:
+
+```bash
+git clone https://github.com/orez-fu/cloud_resources.git
+cd cloud_resources/FCJ/workshop-1/ecs_infra
+
+terraform init
+terraform apply -auto-approve
+```
+
+Quá trình hình thành cơ sở hạ tầng ECS Cluster và các thành phần đi kèm diễn ra trong khoảng 3 phút. Sau đó bạn sẽ nhận được kết quả về thông tin cho tài nguyên đã tạo:
+
+- Thông tin về bastion gồm địa chỉ IP public và username
+- ID của ECS cluster
+- ID của EFS
+
+Hãy truy cập AWS Console và kiểm tra các tài nguyên mà Terraform đã tạo ra.
 
 ### Cập nhật kịch bản kiểm thử trong EFS
 
+Tại bước này, chúng ta sẽ tải xuống và lưu trữ mã nguồn định nghĩa các kịch bản xuống EFS tạo ở bước trước. Mã nguồn locust cũng là đơn giản để minh họa cho các kịch bản kiểm thử diễn ra trên Locust [sample_locust](https://github.com/orez-fu/sample_locust).
+
+Trong bastion đã thực hiện mount EFS tới đường dẫn `/mnt/efs`. Mã nguồn locust sẽ được tải xuống tới đường dẫn này, và được chia sẻ tới các node trong Locust Cluster ở phần sau. Bạn cần truy cập vào bastion và thực hiện theo các câu lệnh sau để chuẩn bị cũng như là cập nhật kịch bản kiểm thử khi cần:
+
+```bash
+sudo su
+
+cd /mnt/efs
+
+git clone https://github.com/orez-fu/sample_locust.git
+```
+
 ### Tạo Locust Cluster bằng ECS Service
+
+Khi môi trường ECS và kịch bản kiểm thử đã được chuẩn bị, bạn có thể tạo ra Locust Cluster và thực hiện kiểm thử bất cứ khi nào muốn. Quay trở lại mã nguồn Terraform **cloud_resources**, bạn cần đi tới thư mục `FCJ/workshop-1/ecs_service`, nơi chứa các cấu hình tạo nên 2 service trong ECS cluster:
+
+- Service Locust Master: cung cấp giao diện quản trị, điều khiển kịch bản kiểm thử hiệu năng và điều phối giả lập yêu cầu tới các node worker. Service dành cho Locust Master chỉ cần 1 container duy nhất.
+- Service Locust Worker: tiếp nhận, thực thi các kịch bản kiểm thử được yêu cầu từ node master. Theo quy mô của cuộc kiểm thử, các container Locust Worker có thể được cố định số lượng trước hoặc tự động co dãn theo tình trạng thực tế lúc kiểm thử thực thi.
+
+Chúng ta sử dụng Terraform tạo Locust Cluster:
+
+```bash
+# trên đường dẫn FCJ/workshop-1/ecs_service
+terraform init
+terraform apply -auto-approve
+```
+
+Sẽ mất khoảng 6-10 phút để hoàn tất các tài nguyên cho tiến hành chạy kiểm thử. Kết quả sẽ được hiển thị mang thông tin Domain Name truy cập tới trang web của Locust.
 
 ### Tiến hành chạy Load Testing
 
+Truy cập trang web Locust theo kết quả của bước trước. Bạn sẽ thấy giao diện cơ bản của Locust,
+
 ## Dọn dẹp môi trường
 
+Để tránh tổn thất chi phí thêm trong tương lai, chạy các câu lệnh dưới đây để dọn dẹp tài nguyên trên môi trường AWS, sẽ mất khoảng 10-15 phút.
+
+```bash
+# Đứng từ thư mục mã nguồn cloud_resouces
+cd FCJ/workshop-1/ecs_infra
+terraform destroy -auto-approve
+
+cd ../ecs_service
+terraform destroy -auto-approve
+```
+
 ## Tổng kết
+
+Thông qua bài viết này, bạn đã nắm được cách hoạt động của Locust để tiến hành cuộc kiểm thử hiệu năng. Mục đích của kiểm thử hiệu năng nhằm nâng cao và ổn định chất lượng của hệ thống, thông qua kết quả trực quan thu được, đây là nguồn dữ liệu để chúng ta đưa ra các phương hướng cải tiến tiếp theo nếu cần. Tính đơn giản, dễ dùng, khả năng mở rộng tốt là những điểm đáng chú ý của giải pháp Locust.
+
+Hơn nữa, bạn cũng đã tiếp cận với dịch vụ trên AWS như ECS, Fargate, EFS. Hướng tiếp cận này là đơn giản hơn so với hình thành EKS cluster, nhưng vẫn có đủ sức mạnh để cung cấp tài nguyên cho Locust Cluster. AWS ECS dễ dàng vận hành và phù hợp với các ứng dụng, hệ thống đơn giản. Khi kết hợp với Fargate, theo mô hình pay-as-you-go, chúng giúp bạn tiết kiệm chi phí hơn. Trong tình huống của bài viết này đưa ra, chỉ khi cần chạy kiểm thử, chúng ta mới cần các tài nguyên do Fargate tạo ra.
+
+Mong rằng bài viết đã cung cấp tới bạn những thông tin bổ ích và ở những bước tiếp sau bài viết này, bạn có thể xây dựng hệ thống kiểm thử và luôn luôn đảm bảo tính tin cậy, độ ổn định trong ứng dụng, hệ thống của bạn.
