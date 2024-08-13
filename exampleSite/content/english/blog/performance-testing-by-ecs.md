@@ -181,4 +181,6 @@ Thông qua bài viết này, bạn đã nắm được cách hoạt động củ
 
 Hơn nữa, bạn cũng đã tiếp cận với dịch vụ trên AWS như ECS, Fargate, EFS. Hướng tiếp cận này là đơn giản hơn so với hình thành EKS cluster, nhưng vẫn có đủ sức mạnh để cung cấp tài nguyên cho Locust Cluster. AWS ECS dễ dàng vận hành và phù hợp với các ứng dụng, hệ thống đơn giản. Khi kết hợp với Fargate, theo mô hình pay-as-you-go, chúng giúp bạn tiết kiệm chi phí hơn. Trong tình huống của bài viết này đưa ra, chỉ khi cần chạy kiểm thử, chúng ta mới cần các tài nguyên do Fargate tạo ra.
 
+Ở phần tiếp theo, chúng ta sẽ cùng nhau bóc tách cấu trúc của ECS để hiểu hơn về các thành phần trong ECS. Và đồng thời, chúng ta cũng sẽ nâng cấp giải pháp, thêm yếu tố tự động mở rộng, co giãn theo yêu cầu của các cuộc kiểm thử hiệu năng.
+
 Mong rằng bài viết đã cung cấp tới bạn những thông tin bổ ích và ở những bước tiếp sau bài viết này, bạn có thể xây dựng hệ thống kiểm thử và luôn luôn đảm bảo tính tin cậy, độ ổn định trong ứng dụng, hệ thống của bạn.
