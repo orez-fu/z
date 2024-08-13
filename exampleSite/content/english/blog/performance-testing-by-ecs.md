@@ -1,5 +1,5 @@
 ---
-title: "Xây dựng hệ thống Performance Testing Locust bằng Amazon Elastic Container Service"
+title: "Xây dựng hệ thống Performance Testing Locust bằng Amazon Elastic Container Service - Phân 1"
 meta_title: ""
 description: ""
 date: 2024-07-20T05:00:00Z
@@ -127,11 +127,40 @@ terraform init
 terraform apply -auto-approve
 ```
 
-Sẽ mất khoảng 6-10 phút để hoàn tất các tài nguyên cho tiến hành chạy kiểm thử. Kết quả sẽ được hiển thị mang thông tin Domain Name truy cập tới trang web của Locust.
+Sẽ mất khoảng 6-10 phút để hoàn tất các tài nguyên cho tiến hành chạy kiểm thử. Kết quả sẽ được hiển thị mang thông tin Domain Name truy cập tới trang web của Locust. Ví dụ về kết quả thu được:
+
+```text
+Apply complete! Resources: 19 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+alb_dns_name = "fcj-workshop-1-alb-1283279575.us-east-1.elb.amazonaws.com"
+aws_service_master_name = "fcj-workshop-1-ecs-service-master"
+```
 
 ### Tiến hành chạy Load Testing
 
-Truy cập trang web Locust theo kết quả của bước trước. Bạn sẽ thấy giao diện cơ bản của Locust,
+Truy cập trang web Locust theo kết quả của bước trước `alb_dns_name`. Bạn sẽ thấy giao diện cơ bản của Locust:
+
+{{< image src="images/3_locust_exp_1.png" caption="Ảnh 2: Trang chủ Locust" alt="alter-text" height="" width="" position="center" command="fill" option="q100" class="img-fluid" title="image title"  webp="false" >}}
+
+Chúng ta đã triển khai Locust Cluster với 1 master và 2 worker, master đóng vai trò điều phối và hiển thị thông tin, bạn có thể thấy phần thông tin **Workers** với số lượng Locust worker là 2.
+
+Để bắt đầu chạy kiểm thử hiệu năng, chúng ta sẽ điền các giá trị:
+
+- Number of users (peak concurrency): Số lượng user giả lập đồng thời tối đa. Giá trị **50**.
+- Ramp up (users started/second): Số lượng user giả lập tăng theo thời gian. Giá trị **5** user giả lập mỗi 1 giây.
+- Host: Ứng dụng chúng ta muốn kiểm thử. Giá trị mặc định được khởi tạo trong mã nguồn.
+
+Sau khi nhập vào các giá trị đầu vào của cuộc kiểm thử, ấn nút **Start** để bắt đầu quá trình giả lập yêu cầu người dùng tới hệ thống. Tiếp theo là công việc của các container trong ECS, cụ thể là các container có vai trò Locust worker chạy thuộc service **fcj-workshop-1-ecs-service-worker** trong ECS. Để theo dõi cuộc kiểm thử, chúng ta sẽ có các tab trên giao diện Locust về thống kê, biểu đồ, lỗi, log,...
+
+{{< image src="images/3_locust_exp_2.png" caption="Ảnh 3: Bảng thông số hoạt động" alt="alter-text" height="" width="" position="center" command="fill" option="q100" class="img-fluid" title="image title 3"  webp="false" >}}
+
+{{< image src="images/3_locust_exp_3.png" caption="Ảnh 4: Đồ thị kiểm thử" alt="alter-text" height="" width="" position="center" command="fill" option="q100" class="img-fluid" title="image title 4"  webp="false" >}}
+
+Kịch bản kiểm thử hiệu năng của chúng ta thực sự rất đơn giản, 1 API tới trang web tin tức Dân Trí. Một số thông tin nổi bật bạn có thể dễ thấy, RPS và Failures. Trong đó, tỉ lệ lỗi gọi API rất cao, bởi hệ thống của Dân Trí đã có lớp bảo vệ đặt giới hạn các yêu cầu gửi tới hệ thống(rate limiting), đây cũng là cách phổ biến để bảo vệ hệ thống khỏi các cuộc tấn công DDoS. Nếu bạn thực sự muốn kiểm tra khả năng chịu tải của hệ thống, trong khoảng thời gian thực hiện các cuộc kiểm thử hiệu năng, bạn cần phải tạm thời tắt giới hạn truy cập, điều này cho phép các yêu cầu không nhận về mã lỗi HTTP 429(too many requests).
+
+Để có thể ngừng cuộc kiểm thử, bạn ấn nút **Stop**. Các báo cáo thống kê về cuộc kiểm thử cũng luôn sẵn sàng cho bạn tải xuống. Bạn cần lưu ý rằng nút **Reset** sẽ xóa bỏ dữ liệu về cuộc kiểm thử trước đó.
 
 ## Dọn dẹp môi trường
 
