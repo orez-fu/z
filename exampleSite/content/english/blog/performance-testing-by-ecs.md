@@ -55,7 +55,7 @@ Giải pháp được đề xuất trong bài viết sử dụng một số côn
 - Cluster Locust: Giải pháp kiểm thử hiệu năng Locust sẽ được triển khai theo mô hình cluster, cho phép giả lập lượng lớn người dùng trong cuộc kiểm thử.
 - Ứng dụng đích: Ứng dụng mà chúng ta sẽ thực muốn biết về hiệu năng, hoạt động dựa trên các cuộc kiểm thử.
 
-{{< image src="images/ws_01_high_level.png" caption="Ảnh 1: Kiến trúc triển khai trên AWS" alt="alter-text" height="" width="" position="center" command="fill" option="q100" class="img-fluid" title="image title"  webp="false" >}}
+{{< image src="images/3_ws_01_high_level.png" caption="Ảnh 1: Kiến trúc triển khai trên AWS" alt="alter-text" height="" width="" position="center" command="fill" option="q100" class="img-fluid" title="image title"  webp="false" >}}
 
 Hành trình của kiểm thử bắt đầu từ hình thành lên kịch bản kiểm thử. Tiếp theo là bước biến ý tưởng thành hiện thực, định nghĩa chúng trong mã nguồn python. Cuộc kiểm thử sẽ được tiến hành trên môi trường cluster Locust được hình thành trên các dịch vụ của AWS. Chi tiết các bước để tiến hành kiểm thử tự động được đề cập trong bài viết được mô tả dưới đây:
 
